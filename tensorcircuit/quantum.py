@@ -1254,6 +1254,140 @@ def heisenberg_hamiltonian(
     return PauliStringSum2Dense(ls, weight, numpy=numpy)
 
 
+def skyrmion_hamiltonian(
+    g: Graph,
+    hzz: float = 1.0,
+    hxx: float = 1.0,
+    hyy: float = 1.0,
+    dz: float = 1.0,
+    dx: float = 0.0,
+    dy: float = 0.0,
+    hz: float = 0.0,
+    hx: float = 0.0,
+    hy: float = 0.0,
+    sparse: bool = True,
+    numpy: bool = False,
+) -> Tensor:
+    """
+    Generate a Skyrmion Hamiltonian with Heisenberg interactions,
+    Dzyaloshinskii–Moriya (DM) interactions, and external fields.
+    Currently requires tensorflow installed.
+
+    The form of Skyrmion:
+    $$ \hat{H}_{skyrmion}= - J \sum_{<i, j>}{ \left( \sigma^x_i \sigma^x_j + \sigma^y_i \sigma^y_j \right) } - A \sum_{<i, j>}{ \sigma^z_i \sigma^z_j } - D \sum_{<i, j>}{ \sigma_i \times \sigma_j } + B_z \sum_{<i>}{\sigma^z_i} $$
+
+    :param g: Input circuit graph
+    :type g: Graph
+    :param hzz: ZZ coupling, default is 1.0
+    :type hzz: float
+    :param hxx: XX coupling, default is 1.0
+    :type hxx: float
+    :param hyy: YY coupling, default is 1.0
+    :type hyy: float
+    :param dz: DM interaction along z, default is 1.0
+    :type dz: float
+    :param dx: DM interaction along x, default is 0.0
+    :type dx: float
+    :param dy: DM interaction along y, default is 0.0
+    :type dy: float
+    :param hz: External field in z direction, default is 0.0
+    :type hz: float
+    :param hx: External field in x direction, default is 0.0
+    :type hx: float
+    :param hy: External field in y direction, default is 0.0
+    :type hy: float
+    :param sparse: Whether to return a sparse Hamiltonian operator, default is True
+    :type sparse: bool
+    :param numpy: Whether to return the matrix in numpy or tensorflow form
+    :type numpy: bool
+
+    :return: Hamiltonian matrix
+    :rtype: Tensor
+    """
+    n = len(g.nodes)
+    ls = []
+    weight = []
+    # Heisenberg interactions
+    for e in g.edges:
+        if hzz != 0:
+            r = [0] * n
+            r[e[0]] = 3
+            r[e[1]] = 3
+            ls.append(r)
+            weight.append(-hzz)
+        if hxx != 0:
+            r = [0] * n
+            r[e[0]] = 1
+            r[e[1]] = 1
+            ls.append(r)
+            weight.append(-hxx)
+        if hyy != 0:
+            r = [0] * n
+            r[e[0]] = 2
+            r[e[1]] = 2
+            ls.append(r)
+            weight.append(-hyy)
+        # DM interactions
+        if dz != 0:    # Dz * (Sx_i * Sy_j - Sy_i * Sx_j)
+            r = [0] * n
+            r[e[0]] = 1
+            r[e[1]] = 2
+            ls.append(r)
+            weight.append(-dz)
+            r = [0] * n
+            r[e[0]] = 2
+            r[e[1]] = 1
+            ls.append(r)
+            weight.append(dz)
+        if dx != 0:    # Dx * (Sy_i * Sz_j - Sz_i * Sy_j)
+            r = [0] * n
+            r[e[0]] = 2
+            r[e[1]] = 3
+            ls.append(r)
+            weight.append(-dx)
+            r = [0] * n
+            r[e[0]] = 3
+            r[e[1]] = 2
+            ls.append(r)
+            weight.append(dx)
+        if dy != 0:    # Dy * (Sz_i * Sx_j - Sx_i * Sz_j)
+            r = [0] * n
+            r[e[0]] = 3
+            r[e[1]] = 1
+            ls.append(r)
+            weight.append(-dy)
+            r = [0] * n
+            r[e[0]] = 1
+            r[e[1]] = 3
+            ls.append(r)
+            weight.append(dy)
+    # External fields
+    for node in g.nodes:
+        if hz != 0:
+            r = [0] * n
+            r[node] = 3
+            ls.append(r)
+            weight.append(hz)
+        if hx != 0:
+            r = [0] * n
+            r[node] = 1
+            ls.append(r)
+            weight.append(hx)
+        if hy != 0:
+            r = [0] * n
+            r[node] = 2
+            ls.append(r)
+            weight.append(hy)
+    ls = num_to_tensor(ls)
+    weight = num_to_tensor(weight)
+    if sparse:
+        r = PauliStringSum2COO_numpy(ls, weight)
+        if numpy:
+            return r
+        return backend.coo_sparse_matrix_from_numpy(r)
+    return PauliStringSum2Dense(ls, weight, numpy=numpy)
+
+
 def PauliStringSum2Dense(
     ls: Sequence[Sequence[int]],
     weight: Optional[Sequence[float]] = None,
@@ -1262,7 +1396,6 @@ def PauliStringSum2Dense(
     """
     Generate dense matrix from Pauli string sum.
     Currently requires tensorflow installed.
-
 
     :param ls: 2D Tensor, each row is for a Pauli string,
         e.g. [1, 0, 0, 3, 2] is for :math:`X_0Z_3Y_4`
