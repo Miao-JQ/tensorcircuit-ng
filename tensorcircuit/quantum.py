@@ -1274,7 +1274,7 @@ def skyrmion_hamiltonian(
     Currently requires tensorflow installed.
 
     The form of Skyrmion:
-    :math:` \hat{H}_{skyrmion}= - J \sum_{<i, j>}{ \left( \sigma^x_i \sigma^x_j + \sigma^y_i \sigma^y_j \right) } - A \sum_{<i, j>}{ \sigma^z_i \sigma^z_j } - D \sum_{<i, j>}{ \sigma_i \times \sigma_j } + B_z \sum_{<i>}{\sigma^z_i} `
+    .. math:: ` \hat{H}_{skyrmion}= - J \sum_{<i, j>}{ \left( \sigma^x_i \sigma^x_j + \sigma^y_i \sigma^y_j \right) } - A \sum_{<i, j>}{ \sigma^z_i \sigma^z_j } - D \sum_{<i, j>}{ \sigma_i \times \sigma_j } + B_z \sum_{<i>}{\sigma^z_i} `  # pylint: disable=line-too-long
 
     :param g: Input circuit graph
     :type g: Graph
