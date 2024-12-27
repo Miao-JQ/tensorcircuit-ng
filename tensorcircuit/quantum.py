@@ -1274,7 +1274,7 @@ def skyrmion_hamiltonian(
     Currently requires tensorflow installed.
 
     The form of Skyrmion:
-    $$ \hat{H}_{skyrmion}= - J \sum_{<i, j>}{ \left( \sigma^x_i \sigma^x_j + \sigma^y_i \sigma^y_j \right) } - A \sum_{<i, j>}{ \sigma^z_i \sigma^z_j } - D \sum_{<i, j>}{ \sigma_i \times \sigma_j } + B_z \sum_{<i>}{\sigma^z_i} $$
+    :math:` \hat{H}_{skyrmion}= - J \sum_{<i, j>}{ \left( \sigma^x_i \sigma^x_j + \sigma^y_i \sigma^y_j \right) } - A \sum_{<i, j>}{ \sigma^z_i \sigma^z_j } - D \sum_{<i, j>}{ \sigma_i \times \sigma_j } + B_z \sum_{<i>}{\sigma^z_i} `
 
     :param g: Input circuit graph
     :type g: Graph
@@ -1328,7 +1328,7 @@ def skyrmion_hamiltonian(
             ls.append(r)
             weight.append(-hyy)
         # DM interactions
-        if dz != 0:    # Dz * (Sx_i * Sy_j - Sy_i * Sx_j)
+        if dz != 0:  # Dz * (Sx_i * Sy_j - Sy_i * Sx_j)
             r = [0] * n
             r[e[0]] = 1
             r[e[1]] = 2
@@ -1339,7 +1339,7 @@ def skyrmion_hamiltonian(
             r[e[1]] = 1
             ls.append(r)
             weight.append(dz)
-        if dx != 0:    # Dx * (Sy_i * Sz_j - Sz_i * Sy_j)
+        if dx != 0:  # Dx * (Sy_i * Sz_j - Sz_i * Sy_j)
             r = [0] * n
             r[e[0]] = 2
             r[e[1]] = 3
@@ -1350,7 +1350,7 @@ def skyrmion_hamiltonian(
             r[e[1]] = 2
             ls.append(r)
             weight.append(dx)
-        if dy != 0:    # Dy * (Sz_i * Sx_j - Sx_i * Sz_j)
+        if dy != 0:  # Dy * (Sz_i * Sx_j - Sx_i * Sz_j)
             r = [0] * n
             r[e[0]] = 3
             r[e[1]] = 1
