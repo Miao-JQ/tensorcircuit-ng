@@ -609,6 +609,8 @@ class JaxBackend(jax_backend.JaxBackend, ExtendedBackend):  # type: ignore
         return carry
 
     def scatter(self, operand: Tensor, indices: Tensor, updates: Tensor) -> Tensor:
+        # updates = jnp.reshape(updates, indices.shape)
+        # return operand.at[indices].set(updates)
         rank = len(operand.shape)
         dnums = libjax.lax.ScatterDimensionNumbers(
             update_window_dims=(),

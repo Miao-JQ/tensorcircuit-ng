@@ -1,4 +1,4 @@
-__version__ = "1.0.1"
+__version__ = "1.2.0"
 __author__ = "TensorCircuit Authors"
 __creator__ = "refraction-ray"
 
@@ -6,7 +6,7 @@ from .utils import gpu_memory_share
 
 gpu_memory_share()
 
-from .about import about
+from .about import about, cite
 from .cons import (
     backend,
     set_backend,
@@ -31,6 +31,16 @@ from .densitymatrix import DMCircuit as DMCircuit_reference
 from .densitymatrix import DMCircuit2
 
 DMCircuit = DMCircuit2  # compatibility issue to still expose DMCircuit2
+DensityMatrixCircuit = DMCircuit
+
+try:
+    from .stabilizercircuit import StabilizerCircuit
+
+    CliffordCircuit = StabilizerCircuit
+    StabCircuit = StabilizerCircuit
+except ModuleNotFoundError:
+    pass
+
 from .gates import num_to_tensor, array_to_tensor
 from .vis import qir2tex, render_pdf
 from . import interfaces
@@ -42,6 +52,8 @@ from . import compiler
 from . import cloud
 from . import fgs
 from .fgs import FGSSimulator
+
+FGSCircuit = FGSSimulator
 
 try:
     from . import keras

@@ -34,14 +34,34 @@ def onehot_matrix(i: int, j: int, N: int) -> Tensor:
 
 class FGSSimulator:
     r"""
-    main refs: https://arxiv.org/pdf/2306.16595.pdf,
-    https://arxiv.org/abs/2209.06945,
-    https://scipost.org/SciPostPhysLectNotes.54/pdf
+    Fermion Gaussian State (FGS) simulator for efficient simulation of non-interacting fermionic systems.
 
-    convention:
-    for Hamiltonian (c^dagger, c)H(c, c^\dagger)
-    for correlation <(c, c^\dagger)(c^\dagger, c)>
-    c' = \alpha^\dagger (c, c^\dagger)
+    This simulator implements methods for:
+    1. State initialization and evolution
+    2. Correlation matrix calculations
+    3. Entanglement measures
+    4. Out-of-time-ordered correlators (OTOC)
+    5. Post-selection and measurements
+
+    Main references:
+    - Gaussian formalism: https://arxiv.org/pdf/2306.16595.pdf
+    - Quantum circuits: https://arxiv.org/abs/2209.06945
+    - Theory background: https://scipost.org/SciPostPhysLectNotes.54/pdf
+
+    Conventions:
+    - Hamiltonian form: (c^dagger, c)H(c, c^\dagger)
+    - Correlation form: <(c, c^\dagger)(c^\dagger, c)>
+    - Bogoliubov transformation: c' = \alpha^\dagger (c, c^\dagger)
+
+    :Example:
+
+    >>> import tensorcircuit as tc
+    >>> # Initialize a 4-site system with sites 0 and 2 occupied
+    >>> sim = tc.FGSSimulator(L=4, filled=[0, 2])
+    >>> # Apply hopping between sites 0 and 1
+    >>> sim.evol_hp(i=0, j=1, chi=1.0)
+    >>> # Calculate entanglement entropy for first two sites
+    >>> entropy = sim.entropy([2, 3])
     """
 
     def __init__(
@@ -176,11 +196,21 @@ class FGSSimulator:
             return cmatrix
 
     def get_reduced_cmatrix(self, subsystems_to_trace_out: List[int]) -> Tensor:
+        """
+        get reduced correlation matrix by tracing out subsystems
+
+        :param subsystems_to_trace_out: list of sites to be traced out
+        :type subsystems_to_trace_out: List[int]
+        :return: reduced density matrix
+        :rtype: Tensor
+        """
         m = self.get_cmatrix()
         if subsystems_to_trace_out is None:
             subsystems_to_trace_out = []
         keep = [i for i in range(self.L) if i not in subsystems_to_trace_out]
         keep += [i + self.L for i in range(self.L) if i not in subsystems_to_trace_out]
+        if len(keep) == 0:  # protect from empty keep
+            raise ValueError("the full system is traced out, no subsystems to keep")
         keep = backend.convert_to_tensor(keep)
 
         def slice_(a: Tensor) -> Tensor:

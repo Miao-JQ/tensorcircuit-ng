@@ -36,6 +36,11 @@ def test_about():
     print(tc.about())
 
 
+def test_cite():
+    print(tc.cite())
+    print(tc.cite("aps"))
+
+
 def test_ps2coo(tfb):
     for l, a in check_pairs:
         r1 = PauliString2COO(tf.constant(l, dtype=tf.int64))
@@ -254,3 +259,24 @@ def test_evol(jaxb):
 def test_energy_baseline():
     print(TFIM1Denergy(10))
     print(Heisenberg1Denergy(10))
+
+
+def test_jax_function_load(jaxb, tmp_path):
+    K = tc.backend
+
+    @K.jit
+    def f(weights):
+        c = tc.Circuit(3)
+        c.rx(range(3), theta=weights)
+        return K.real(c.expectation_ps(z=[0]))
+
+    print(f(K.ones([3])))
+
+    experimental.jax_jitted_function_save(
+        os.path.join(tmp_path, "temp.bin"), f, K.ones([3])
+    )
+
+    f_load = tc.experimental.jax_jitted_function_load(
+        os.path.join(tmp_path, "temp.bin")
+    )
+    np.testing.assert_allclose(f_load(K.ones([3])), 0.5403, atol=1e-4)

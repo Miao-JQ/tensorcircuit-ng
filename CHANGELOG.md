@@ -2,6 +2,44 @@
 
 ## Unreleased
 
+## v1.2.0
+
+### Added
+
+- Add initial draft on stabilizer simulation using stim backend
+
+- Add `jax_interface`
+
+- Add `merge_count` in `results` module
+
+### Fixed
+
+- Better contractor infrastructures with "breakpoint" contractor to simply get the networks
+
+- Contractor and quantum operator codebase refactored: enable distributed computation power
+
+## 1.1.0
+
+### Added
+
+- Add jax jitted function load/save utilities in experimental.py
+
+- Add `circuit.to_openqasm_file` function for compatibility of qiskit>1
+
+- Add `tc.cite()` to get citation information
+
+- Add `u1_inds`, `u1_mask`, `u1_project`, and `u1_enlarge` functions in quantum.py as utilities in charged conservation systems
+
+- Add `psd` boolean to `sqrtmh` method for backends
+
+### Fixed
+
+- Fix customized jax eigh operator by noting the return is a namedtuple
+
+- Fix some issues in `jacfwd` and `jacrev` when integrated with vmap
+
+## 1.0.2
+
 ### Added
 
 - Add `jittable` option in `c.sample()` method, friendly to switch off for large scale sample
@@ -13,6 +51,8 @@
 ### Fixed
 
 - Fix quafu provider
+
+- Raise ValueError for `FGSSimulator` when traced out sites correspond the full system
 
 ## 1.0.1
 
