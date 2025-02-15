@@ -1408,12 +1408,12 @@ def heisenberg_hamiltonian(
 
 def skyrmion_hamiltonian(
     g: Graph,
+    nx: int = None,
+    ny: int = None,
     hzz: float = 1.0,
     hxx: float = 1.0,
     hyy: float = 1.0,
-    dz: float = 1.0,
-    dx: float = 0.0,
-    dy: float = 0.0,
+    d: float = 1.0,
     hz: float = 0.0,
     hx: float = 0.0,
     hy: float = 0.0,
@@ -1422,11 +1422,11 @@ def skyrmion_hamiltonian(
 ) -> Tensor:
     """
     Generate a Skyrmion Hamiltonian with Heisenberg interactions,
-    Dzyaloshinskii–Moriya (DM) interactions, and external fields.
+    Dzyaloshinskii–Moriya (DM) interactions, and external fields only on the boundary spins.
     Currently requires tensorflow installed.
 
     The form of Skyrmion:
-    .. math:: ` \hat{H}_{skyrmion}= - J \sum_{<i, j>}{ \left( \sigma^x_i \sigma^x_j + \sigma^y_i \sigma^y_j \right) } - A \sum_{<i, j>}{ \sigma^z_i \sigma^z_j } - D \sum_{<i, j>}{ \sigma_i \times \sigma_j } + B_z \sum_{<i>}{\sigma^z_i} `  # pylint: disable=line-too-long
+    .. math:: ` \hat{H}_{skyrmion}= - J \sum_{<i, j>}{ \left( \sigma^x_i \sigma^x_j + \sigma^y_i \sigma^y_j \right) } - A \sum_{<i, j>}{ \sigma^z_i \sigma^z_j } - D \sum_{<i, j>}{ (u_{ij} \times \hat{z}) \cdot (\sigma_i \times \sigma_j) } + B_z \sum_{<b>}{\sigma^z_b}  `  # pylint: disable=line-too-long
 
     :param g: Input circuit graph
     :type g: Graph
@@ -1436,12 +1436,8 @@ def skyrmion_hamiltonian(
     :type hxx: float
     :param hyy: YY coupling, default is 1.0
     :type hyy: float
-    :param dz: DM interaction along z, default is 1.0
-    :type dz: float
-    :param dx: DM interaction along x, default is 0.0
-    :type dx: float
-    :param dy: DM interaction along y, default is 0.0
-    :type dy: float
+    :param d: DM interaction, default is 1.0
+    :type d: float
     :param hz: External field in z direction, default is 0.0
     :type hz: float
     :param hx: External field in x direction, default is 0.0
@@ -1457,10 +1453,19 @@ def skyrmion_hamiltonian(
     :rtype: Tensor
     """
     n = len(g.nodes)
+    if nx is None and ny is None:
+        nx = ny = int(np.sqrt(n))
+    elif nx is None:
+        nx = n // ny
+    elif ny is None:
+        ny = n // nx
+    assert nx * ny == n, f"Invalid lattice: {nx}×{ny}≠{n}. Requires nx×ny = {n}."
+
     ls = []
     weight = []
-    # Heisenberg interactions
+
     for e in g.edges:
+        # Heisenberg interactions
         if hzz != 0:
             r = [0] * n
             r[e[0]] = 3
@@ -1479,64 +1484,69 @@ def skyrmion_hamiltonian(
             r[e[1]] = 2
             ls.append(r)
             weight.append(-hyy)
+
         # DM interactions
-        if dz != 0:  # Dz * (Sx_i * Sy_j - Sy_i * Sx_j)
-            r = [0] * n
-            r[e[0]] = 1
-            r[e[1]] = 2
-            ls.append(r)
-            weight.append(-dz)
-            r = [0] * n
-            r[e[0]] = 2
-            r[e[1]] = 1
-            ls.append(r)
-            weight.append(dz)
-        if dx != 0:  # Dx * (Sy_i * Sz_j - Sz_i * Sy_j)
-            r = [0] * n
-            r[e[0]] = 2
-            r[e[1]] = 3
-            ls.append(r)
-            weight.append(-dx)
-            r = [0] * n
-            r[e[0]] = 3
-            r[e[1]] = 2
-            ls.append(r)
-            weight.append(dx)
-        if dy != 0:  # Dy * (Sz_i * Sx_j - Sx_i * Sz_j)
-            r = [0] * n
-            r[e[0]] = 3
-            r[e[1]] = 1
-            ls.append(r)
-            weight.append(-dy)
-            r = [0] * n
-            r[e[0]] = 1
-            r[e[1]] = 3
-            ls.append(r)
-            weight.append(dy)
+        xi, yi = e[0] % nx, e[0] // nx
+        xj, yj = e[1] % nx, e[1] // nx
+        direction = None
+        if xj == xi + 1 and yj == yi:
+            direction = "right"
+        elif yj == yi + 1 and xj == xi:
+            direction = "down"
+        else:
+            continue  # only consider the nerest neighbor
+
+        if d != 0 and direction:
+            if direction == "right":   # -D * (σ^x_i σ^z_j - σ^z_i σ^x_j)
+                r = [0] * n
+                r[e[0]] = 1
+                r[e[1]] = 3
+                ls.append(r)
+                weight.append(-d)
+                r = [0] * n
+                r[e[0]] = 3
+                r[e[1]] = 1
+                ls.append(r)
+                weight.append(d)
+            if direction == "down":   # -D * (σ^z_i σ^y_j - σ^y_i σ^z_j)
+                r = [0] * n
+                r[e[0]] = 3
+                r[e[1]] = 2
+                ls.append(r)
+                weight.append(-d)
+                r = [0] * n
+                r[e[0]] = 2
+                r[e[1]] = 3
+                ls.append(r)
+                weight.append(d)
+
     # External fields
+    def is_boundary(i):
+        x, y = i % nx, i // nx
+        return x in (0, nx-1) or y in (0, nx-1)
     for node in g.nodes:
-        if hz != 0:
-            r = [0] * n
-            r[node] = 3
-            ls.append(r)
-            weight.append(hz)
-        if hx != 0:
-            r = [0] * n
-            r[node] = 1
-            ls.append(r)
-            weight.append(hx)
-        if hy != 0:
-            r = [0] * n
-            r[node] = 2
-            ls.append(r)
-            weight.append(hy)
+        if is_boundary(node):
+            if hz != 0:
+                r = [0] * n
+                r[node] = 3
+                ls.append(r)
+                weight.append(hz)
+            if hx != 0:
+                r = [0] * n
+                r[node] = 1
+                ls.append(r)
+                weight.append(hx)
+            if hy != 0:
+                r = [0] * n
+                r[node] = 2
+                ls.append(r)
+                weight.append(hy)
+
     ls = num_to_tensor(ls)
     weight = num_to_tensor(weight)
     if sparse:
         r = PauliStringSum2COO_numpy(ls, weight)
-        if numpy:
-            return r
-        return backend.coo_sparse_matrix_from_numpy(r)
+        return r if numpy else backend.coo_sparse_matrix_from_numpy(r)
     return PauliStringSum2Dense(ls, weight, numpy=numpy)
 
 
