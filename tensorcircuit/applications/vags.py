@@ -493,6 +493,107 @@ def heisenberg_measurements_tc(
     return loss
 
 
+def skyrmion_measurements_tc(
+    c: Union[Circuit, DMCircuit],
+    g: Graph,
+    nx: int = None,
+    ny: int = None,
+    hzz: float = 1.0,
+    hxx: float = 1.0,
+    hyy: float = 1.0,
+    d: float = 1.0,
+    hz: float = 0.0,
+    hx: float = 0.0,
+    hy: float = 0.0,
+    reuse: bool = True,
+) -> Tensor:
+    """
+    Compute the expectation value of the Skyrmion Hamiltonian for a given quantum circuit.
+
+    :param c: The quantum circuit or DMCircuit.
+    :param g: The graph representing the lattice structure.
+    :param nx: Number of columns in the lattice. Inferred if not provided.
+    :param ny: Number of rows in the lattice. Inferred if not provided.
+    :param hzz: Coupling strength for ZZ Heisenberg interaction.
+    :param hxx: Coupling strength for XX Heisenberg interaction.
+    :param hyy: Coupling strength for YY Heisenberg interaction.
+    :param d: Strength of the Dzyaloshinskii–Moriya interaction.
+    :param hz: External magnetic field in the z-direction applied to boundary spins.
+    :param hx: External magnetic field in the x-direction applied to boundary spins.
+    :param hy: External magnetic field in the y-direction applied to boundary spins.
+    :param reuse: Whether to reuse the circuit for multiple expectations. Defaults to True.
+    :return: The expectation value of the Skyrmion Hamiltonian.
+    """
+    loss = 0.0
+    n = len(g.nodes)
+    if nx is None and ny is None:
+        nx = ny = int(np.sqrt(n))
+    elif nx is None:
+        nx = n // ny
+    elif ny is None:
+        ny = n // nx
+    assert nx * ny == n, f"Invalid lattice: {nx}×{ny}≠{n}. Requires nx×ny = {n}."
+
+    for e in g.edges:
+        i, j = e[0], e[1]
+        w_ij = g[i][j].get("weight", 1.0)  # If your graph edges carry weights
+
+        # Heisenberg terms
+        if hzz != 0:
+            loss += (
+                w_ij * (-hzz) * c.expectation((G.z(), [i]), (G.z(), [j]), reuse=reuse)
+            )
+        if hxx != 0:
+            loss += (
+                w_ij * (-hxx) * c.expectation((G.x(), [i]), (G.x(), [j]), reuse=reuse)
+            )
+        if hyy != 0:
+            loss += (
+                w_ij * (-hyy) * c.expectation((G.y(), [i]), (G.y(), [j]), reuse=reuse)
+            )
+
+        # Determine direction for DM interaction
+        xi, yi = i % nx, i // nx
+        xj, yj = j % nx, j // nx
+        direction = None
+        if xj == xi + 1 and yj == yi:
+            direction = "right"
+        elif yj == yi + 1 and xj == xi:
+            direction = "down"
+        else:
+            continue
+
+        # DMI terms based on direction
+        if d != 0 and direction:
+            if direction == "right":
+                loss += (
+                    w_ij * (-d) * c.expectation((G.x(), [i]), (G.z(), [j]), reuse=reuse)
+                )
+                loss += (
+                    w_ij * d * c.expectation((G.z(), [i]), (G.x(), [j]), reuse=reuse)
+                )
+            elif direction == "down":
+                loss += (
+                    w_ij * d * c.expectation((G.z(), [i]), (G.y(), [j]), reuse=reuse)
+                )
+                loss += (
+                    w_ij * (-d) * c.expectation((G.y(), [i]), (G.z(), [j]), reuse=reuse)
+                )
+
+    # External fields on boundary nodes
+    for node in g.nodes:
+        x = node % nx
+        y = node // nx
+        if x in (0, nx - 1) or y in (0, ny - 1):
+            if hz != 0:
+                loss += hz * c.expectation((G.z(), [node]), reuse=reuse)
+            if hx != 0:
+                loss += hx * c.expectation((G.x(), [node]), reuse=reuse)
+            if hy != 0:
+                loss += hy * c.expectation((G.y(), [node]), reuse=reuse)
+    return loss
+
+
 def qaoa_noise_vag(
     gdata: Graph,
     nnp: Tensor,
